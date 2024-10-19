@@ -11,6 +11,8 @@ import { ErrorResponse } from 'src/types/utils.type'
 import { toast } from 'react-toastify'
 import { AppContext } from 'src/contexts/app.context'
 import Button from 'src/components/Button'
+import { User } from 'src/types/user.type'
+import { profile } from 'console'
 
 // interface FormData {
 //   email: string
@@ -19,7 +21,7 @@ import Button from 'src/components/Button'
 type FormData = LoginSchema
 
 export default function Login() {
-  const { setIsAuthenticated, setProfile } = useContext(AppContext)
+  const { setIsAuthenticated, profile, setProfile } = useContext(AppContext)
   const navigate = useNavigate()
   const {
     register,
@@ -39,17 +41,27 @@ export default function Login() {
   })
 
   const onSubmit = handleSubmit((data) => {
-    console.log(data)
     console.log('error', errors)
+
     loginAccountMutation.mutate(data, {
       onSuccess: (data) => {
-        console.log('success login', data)
-        toast.success(data.data.message)
+        const updateProfile: User = {
+          id: data.data.id,
+          username: data.data.username,
+          roles: data.data.roles
+        }
+        if (data.data.roles.includes('ROLE_Shop')) {
+          updateProfile.shopId = data.data.shopId
+        }
+
+        // console.log('success login', data)
+        toast.success('Login success')
         setIsAuthenticated(true)
-        setProfile(data.data.data.user)
+        setProfile(updateProfile)
         navigate('/')
       },
       onError: (error) => {
+        console.log(error)
         if (isAxiosUnprocessableEntityError<ErrorResponse<LoginSchema>>(error)) {
           const formError = error.response?.data.data
           if (formError) {
@@ -67,6 +79,7 @@ export default function Login() {
 
   // const val = watch()
   // console.log(val)
+  console.log('aft set', profile)
   return (
     <div className='bg-orange'>
       {/* <Helmet>
@@ -79,11 +92,11 @@ export default function Login() {
             <form className='rounded bg-white p-10 shadow-sm' onSubmit={onSubmit} noValidate>
               <div className='text-2xl mb-4 '>Đăng nhập</div>
               <Input
-                name='email'
+                name='username'
                 register={register}
-                type='email'
-                errorMessage={errors.email?.message}
-                placeholder='Email'
+                type='username'
+                errorMessage={errors.username?.message}
+                placeholder='Username'
                 // rule={rules.email}
               />
               <Input

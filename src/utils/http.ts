@@ -2,8 +2,8 @@ import axios, { AxiosError, type AxiosInstance } from 'axios'
 import config from '../constants/config'
 import HttpStatusCode from 'src/constants/httpStatusCode.enum'
 import { toast } from 'react-toastify'
-import { URL_LOGIN, URL_LOGOUT, URL_REFRESH_TOKEN, URL_REGISTER } from 'src/apis/auth.api'
-import { AuthResponse } from 'src/types/auth.type'
+import { URL_LOGIN, URL_LOGOUT, URL_REFRESH, URL_REGISTER } from 'src/apis/auth.api'
+import { AuthResponse, RefreshTokenReponse } from 'src/types/auth.type'
 import {
   clearLS,
   getAccessTokenFromLS,
@@ -12,6 +12,9 @@ import {
   setProfileToLS,
   setRefreshTokenToLS
 } from './auth'
+import { User } from 'src/types/user.type'
+import { isAxiosExpiredTokenError, isAxiosUnauthorizedError } from './utils'
+import { ErrorResponse } from 'src/types/utils.type'
 // Purchase: 1 - 3
 // Me: 2 - 5
 // Refresh Token cho purchase: 3 -  4
@@ -24,6 +27,7 @@ export class Http {
   private accessToken: string
   private refreshToken: string
   private refreshTokenRequest: Promise<string> | null
+
   constructor() {
     this.accessToken = getAccessTokenFromLS()
     this.refreshToken = getRefreshTokenFromLS()
@@ -41,7 +45,7 @@ export class Http {
     this.instance.interceptors.request.use(
       (config) => {
         if (this.accessToken && config.headers) {
-          config.headers.authorization = this.accessToken
+          config.headers.authorization = `Bearer ${this.accessToken}`
           return config
         }
         return config
@@ -52,15 +56,28 @@ export class Http {
     )
     this.instance.interceptors.response.use(
       (response) => {
+        // console.log(response)
         // get token from response
         const { url } = response.config
-        if (url === URL_LOGIN || url === URL_REGISTER) {
+        // if (url === URL_LOGIN || url === URL_REGISTER) {
+        if (url === URL_LOGIN) {
           const data = response.data as AuthResponse
-          this.accessToken = data.data.access_token
-          this.refreshToken = data.data.refresh_token
+
+          const updateProfile: User = {
+            id: data.id,
+            username: data.username,
+            roles: data.roles
+          }
+          if (data.roles.includes('ROLE_Shop')) {
+            updateProfile.shopId = data.shopId
+          }
+
+          this.accessToken = data.accessToken
+          this.refreshToken = data.refreshToken
           setAccessTokenToLS(this.accessToken)
           setRefreshTokenToLS(this.refreshToken)
-          setProfileToLS(data.data.user)
+          setProfileToLS(updateProfile)
+          // setProfileToLS(data.data.user)
         } else if (url === URL_LOGOUT) {
           this.accessToken = ''
           this.refreshToken = ''
@@ -76,10 +93,72 @@ export class Http {
           const message = data?.message || error.message
           toast.error(message)
         }
+        // Lỗi Unauthorized (401) có rất nhiều trường hợp
+        // - Token không đúng
+        // - Không truyền token
+        // - Token hết hạn*
+
+        // Nếu là lỗi 401
+        if (isAxiosUnauthorizedError<ErrorResponse<{ name: string; message: string }>>(error)) {
+          const config = error.response?.config || { headers: {}, url: '' }
+          const { url } = config
+          // Trường hợp Token hết hạn và request đó không phải là của request refresh token
+          // thì chúng ta mới tiến hành gọi refresh token
+          if (isAxiosExpiredTokenError(error) && url !== URL_REFRESH) {
+            // Hạn chế gọi 2 lần handleRefreshToken
+            this.refreshTokenRequest = this.refreshTokenRequest
+              ? this.refreshTokenRequest
+              : this.handleRefreshToken().finally(() => {
+                  // Giữ refreshTokenRequest trong 10s cho những request tiếp theo nếu có 401 thì dùng
+                  setTimeout(() => {
+                    this.refreshTokenRequest = null
+                  }, 10000)
+                })
+            return this.refreshTokenRequest.then((access_token) => {
+              // Nghĩa là chúng ta tiếp tục gọi lại request cũ vừa bị lỗi
+              return this.instance({ ...config, headers: { ...config.headers, authorization: access_token } })
+            })
+          }
+
+          // Còn những trường hợp như token không đúng
+          // không truyền token,
+          // token hết hạn nhưng gọi refresh token bị fail
+          // thì tiến hành xóa local storage và toast message
+
+          clearLS()
+          this.accessToken = ''
+          this.refreshToken = ''
+          toast.error(error.response?.data.message || error.response?.data.message)
+          // window.location.reload()
+        }
 
         return Promise.reject(error)
       }
     )
+  }
+  private handleRefreshToken() {
+    return this.instance
+      .post<RefreshTokenReponse>(
+        URL_REFRESH,
+        {},
+        {
+          headers: {
+            REFERER: this.refreshToken // Add the refresh token in the headers with the key 'REFERER'
+          }
+        }
+      )
+      .then((res) => {
+        const access_token = res.data.accessToken
+        setAccessTokenToLS(access_token)
+        this.accessToken = access_token
+        return access_token
+      })
+      .catch((error) => {
+        clearLS()
+        this.accessToken = ''
+        this.refreshToken = ''
+        throw error
+      })
   }
 }
 const http = new Http().instance

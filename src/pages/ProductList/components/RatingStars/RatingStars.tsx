@@ -1,6 +1,22 @@
 import React from 'react'
+import { createSearchParams, useNavigate } from 'react-router-dom'
+import { QueryConfig } from 'src/hooks/useQueryConfig'
 
+interface Props {
+  queryConfig: QueryConfig
+}
 export default function RatingStars() {
+  // const navigate = useNavigate()
+
+  // const handleFilterStar = (ratingFilter: number) => {
+  //   navigate({
+  //     pathname: path.home,
+  //     search: createSearchParams({
+  //       ...queryConfig,
+  //       rating_filter: String(ratingFilter)
+  //     }).toString()
+  //   })
+  // }
   return (
     <ul className='my-3'>
       {Array(5)

@@ -4,10 +4,15 @@ import { Link } from 'react-router-dom'
 import path from 'src/constants/path'
 import Popover from '../Popover/Popover'
 import NavHeader from '../NavHeader'
+import { AppContext } from 'src/contexts/app.context'
+import cartApi from 'src/apis/cart.api'
+import { formatCurrency } from 'src/utils/utils'
+import noproduct from 'src/assets/images/no-product.png'
 
 const MAX_PURCHASES = 5
 export default function Header() {
-  // const { isAuthenticated } = useContext(AppContext)
+  const { profile, isAuthenticated } = useContext(AppContext)
+
   // const { onSubmitSearch, register } = useSearchProducts()
 
   // Khi chúng ta chuyển trang thì Header chỉ bị re-render
@@ -15,13 +20,15 @@ export default function Header() {
   // (Tất nhiên là trừ trường hợp logout rồi nhảy sang RegisterLayout rồi nhảy vào lại)
   // Nên các query này sẽ không bị inactive => Không bị gọi lại => không cần thiết phải set stale: Infinity
 
-  // const { data: purchasesInCartData } = useQuery({
-  //   queryKey: ['purchases', { status: purchasesStatus.inCart }],
-  //   queryFn: () => purchaseApi.getPurchases({ status: purchasesStatus.inCart }),
-  //   enabled: isAuthenticated
-  // })
+  const { data: purchasesInCartData } = useQuery({
+    queryKey: ['cart'],
+    queryFn: () => cartApi.getCart(Number(profile?.id)),
+    enabled: isAuthenticated
+  })
 
-  // const purchasesInCart = purchasesInCartData?.data.data
+  const purchasesInCart = purchasesInCartData?.data.data
+  // console.log('data in cart', purchasesInCart)
+  // console.log('profile', profile)
 
   return (
     <div className='bg-[linear-gradient(-180deg,#f53d2d,#f63)] pb-5 pt-2 text-white'>
@@ -65,34 +72,36 @@ export default function Header() {
           <div className='col-span-1 justify-self-start'>
             <Popover
               renderPopover={
-                <div className='relative  max-w-[400px] rounded-sm border border-gray-200 bg-white text-sm shadow-md'>
-                  hheheh
-                  {/* {purchasesInCart && purchasesInCart.length > 0 ? (
+                <div className='relative  max-w-[500px] rounded-sm border border-gray-200 bg-white text-sm shadow-md'>
+                  {purchasesInCart && purchasesInCart.itemList.length > 0 ? (
                     <div className='p-2'>
                       <div className='capitalize text-gray-400'>Sản phẩm mới thêm</div>
                       <div className='mt-5'>
-                        {purchasesInCart.slice(0, MAX_PURCHASES).map((purchase) => (
-                          <div className='mt-2 flex py-2 hover:bg-gray-100' key={purchase._id}>
+                        {purchasesInCart.itemList.slice(0, MAX_PURCHASES).map((purchase) => (
+                          <div className='mt-2 flex py-2 hover:bg-gray-100' key={purchase.bookId}>
                             <div className='flex-shrink-0'>
+                              {/* <img src={purchase.imagePath} alt={purchase.title} className='h-11 w-11 object-cover' /> */}
                               <img
-                                src={purchase.product.image}
-                                alt={purchase.product.name}
-                                className='h-11 w-11 object-cover'
+                                src={`http://localhost:8080/images/${purchase.imagePath}`}
+                                alt={purchase.title}
+                                className='h-20 w-20 object-cover'
                               />
                             </div>
                             <div className='ml-2 flex-grow overflow-hidden'>
-                              <div className='truncate'>{purchase.product.name}</div>
+                              <div className='truncate'>{purchase.title}</div>
                             </div>
                             <div className='ml-2 flex-shrink-0'>
-                              <span className='text-orange'>₫{formatCurrency(purchase.product.price)}</span>
+                              <span className='text-orange'>₫{formatCurrency(purchase.price)}</span>
                             </div>
                           </div>
                         ))}
                       </div>
                       <div className='mt-6 flex items-center justify-between'>
                         <div className='text-xs capitalize text-gray-500'>
-                          {purchasesInCart.length > MAX_PURCHASES ? purchasesInCart.length - MAX_PURCHASES : ''} Thêm
-                          hàng vào giỏ
+                          {purchasesInCart.itemList.length > MAX_PURCHASES
+                            ? purchasesInCart.itemList.length - MAX_PURCHASES
+                            : ''}{' '}
+                          Thêm hàng vào giỏ
                         </div>
                         <Link
                           to={path.cart}
@@ -107,7 +116,7 @@ export default function Header() {
                       <img src={noproduct} alt='no purchase' className='h-24 w-24' />
                       <div className='mt-3 capitalize'>Chưa có sản phẩm</div>
                     </div>
-                  )} */}
+                  )}
                 </div>
               }
             >
@@ -126,11 +135,11 @@ export default function Header() {
                     d='M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z'
                   />
                 </svg>
-                {/* {purchasesInCart && purchasesInCart.length > 0 && (
+                {purchasesInCart && purchasesInCart.itemList.length > 0 && (
                   <span className='absolute top-[-5px] left-[17px] rounded-full bg-white px-[9px] py-[1px] text-xs text-orange '>
-                    {purchasesInCart?.length}
+                    {purchasesInCart.itemList.length}
                   </span>
-                )} */}
+                )}
               </Link>
             </Popover>
           </div>

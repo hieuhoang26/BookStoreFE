@@ -10,28 +10,40 @@ export interface Product {
 
 export interface ProductList {
   products: Product[]
-  pagination: {
-    page: number
-    size: number
-    total: number
-    // page: number
-    // limit: number
-    // page_size: number
-  }
+  page: number
+  size: number
+  total: number
+  // page: number
+  // limit: number
+  // page_size: number
 }
 
 export interface ProductListConfig {
-  page?: number | string
-  limit?: number | string
-  sort_by?: 'createdAt' | 'view' | 'sold' | 'price'
-  order?: 'asc' | 'desc'
-  exclude?: string
-  //   rating_filter?: number | string
-  //   price_max?: number | string
-  //   price_min?: number | string
-  name?: string
+  pageNo?: number | string
+  pageSize?: number | string
+  sortBy?: string
   category?: string
+  // exclude?: string
+  //   rating_filter?: number | string
+  minPrice?: number | string
+  maxPrice?: number | string
+  name?: string
 }
-export interface ImageList {
-  imgPath: string
+export interface DetailProduct {
+  id: number
+  shopId: number
+  shopName: string
+  title: string
+  price: number
+  author: string
+  currentQuantity: number
+  soldQuantity: number
+  publisher: string
+  publicationDate: string
+  coverType: string
+  numberOfPages: number
+  description: string
+  dimension: string
+  categories: string[]
+  images: string[]
 }

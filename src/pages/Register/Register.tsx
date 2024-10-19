@@ -22,11 +22,13 @@ import Button from 'src/components/Button'
 //   password: string
 //   confirm_password: string
 // }
-type FormData = Pick<Schema, 'email' | 'password' | 'confirm_password'> // or use omit
-const registerSchema = schema.pick(['email', 'password', 'confirm_password']) // get some field from schema
+// interface
+type FormData = Pick<Schema, 'username' | 'email' | 'password' | 'confirm_password' | 'phoneNumber'> // or use omit
+// const registerSchema = schema.pick(['email', 'password', 'confirm_password']) // get some field from schema
+const registerSchema = schema
 
 export default function Register() {
-  const { setIsAuthenticated, setProfile } = useContext(AppContext)
+  // const { setIsAuthenticated, setProfile } = useContext(AppContext)
   const navigate = useNavigate()
   const {
     register,
@@ -42,21 +44,30 @@ export default function Register() {
   // const rules = getRules(getValues)
 
   const registerAccountMutation = useMutation({
-    mutationFn: (body: Omit<FormData, 'confirm_password'>) => authApi.registerAccount(body)
+    mutationKey: ['registerAccount'],
+    // mutationFn: (body: Omit<FormData, 'confirm_password'>) => authApi.registerAccount(body)
+    mutationFn: async (body: Omit<FormData, 'confirm_password'>) => {
+      console.log('Mutation function called')
+      const response = await authApi.registerAccount(body)
+      console.log('API Response:', response)
+      return response
+    }
   })
 
   const onSubmit = handleSubmit((data) => {
     console.log(data)
+
     const body = omit(data, ['confirm_password'])
+
     registerAccountMutation.mutate(body, {
       onSuccess: (data) => {
         console.log(data)
-        setIsAuthenticated(true)
-        setProfile(data.data.data.user)
-        navigate('/')
+        // setIsAuthenticated(true)
+        // setProfile(data.data.data.user)
+        navigate('/login')
       },
       onError: (error) => {
-        // console.log(error)
+        console.log(error)
         // get error from axios set to error of react hook form -> show error
         if (isAxiosUnprocessableEntityError<ErrorResponse<Omit<FormData, 'confirm_password'>>>(error)) {
           const formError = error.response?.data.data
@@ -98,19 +109,35 @@ export default function Register() {
             <form className='rounded bg-white p-10 shadow-sm' onSubmit={onSubmit} noValidate>
               <div className='text-2xl'>Đăng ký</div>
               <Input
+                name='username'
+                register={register}
+                type='username'
+                className='mt-8'
+                errorMessage={errors.username?.message}
+                placeholder='UseName'
+                // rule={rules.email}
+              />
+              <Input
                 name='email'
                 register={register}
                 type='email'
-                className='mt-8'
                 errorMessage={errors.email?.message}
                 placeholder='Email'
+                // rule={rules.email}
+              />
+              <Input
+                name='phoneNumber'
+                register={register}
+                type='phoneNumber'
+                errorMessage={errors.phoneNumber?.message}
+                placeholder='phoneNumber'
                 // rule={rules.email}
               />
               <Input
                 name='password'
                 register={register}
                 type='password'
-                className='mt-2'
+                className='mt-1'
                 // classNameEye='absolute right-[5px] h-5 w-5 cursor-pointer top-[12px]'
                 errorMessage={errors.password?.message}
                 placeholder='Password'
@@ -122,7 +149,7 @@ export default function Register() {
                 name='confirm_password'
                 register={register}
                 type='password'
-                className='mt-2'
+                className='mt-1'
                 // classNameEye='absolute right-[5px] h-5 w-5 cursor-pointer top-[12px]'
                 errorMessage={errors.confirm_password?.message}
                 placeholder='Confirm Password'

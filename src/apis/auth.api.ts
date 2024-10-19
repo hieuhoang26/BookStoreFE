@@ -1,18 +1,21 @@
 import { AuthResponse } from 'src/types/auth.type'
 import http from 'src/utils/http'
 
-export const URL_LOGIN = 'login'
-export const URL_REGISTER = 'register'
-export const URL_LOGOUT = 'logout'
-export const URL_REFRESH_TOKEN = 'refresh-access-token'
+export const URL_LOGIN = 'auth/login'
+export const URL_REGISTER = 'auth/signup'
+export const URL_LOGOUT = 'auth/logout'
+export const URL_REFRESH = 'auth/refresh'
 
 const authApi = {
-  registerAccount(body: { email: string; password: string }) {
+  registerAccount(body: { username: string; email: string; password: string; phoneNumber: string }) {
     return http.post<AuthResponse>(URL_REGISTER, body)
   },
-  login(body: { email: string; password: string }) {
+  login(body: { username: string; password: string }) {
     return http.post<AuthResponse>(URL_LOGIN, body)
   },
+  // refresh(token: string) {
+  //   return http.post<AuthResponse>(URL_REFRESH, { refreshToken: token })
+  // },
   logout() {
     return http.post(URL_LOGOUT)
   }

@@ -1,13 +1,101 @@
 import React from 'react'
-import { Controller } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { createSearchParams, Link, useNavigate } from 'react-router-dom'
 import Button from 'src/components/Button'
 import path from 'src/constants/path'
 import RatingStars from '../RatingStars'
+import { QueryConfig } from 'src/hooks/useQueryConfig'
+import { Category } from 'src/types/categories.type'
+import classNames from 'classnames'
+import InputNumber from 'src/components/InputNumber/InputNumber'
+import { schema, Schema } from 'src/utils/rule'
+import { NoUndefinedField } from 'src/types/utils.type'
+import { yupResolver } from '@hookform/resolvers/yup'
+import { ObjectSchema } from 'yup'
+import { omit } from 'lodash'
 
-export default function AsideFilter() {
+interface Props {
+  queryConfig: QueryConfig // get curr page
+  categories: Category[]
+}
+type FormData = NoUndefinedField<Pick<Schema, 'maxPrice' | 'minPrice'>> // NoUndefinedField remove undefined
+
+const priceSchema = schema.pick(['minPrice', 'maxPrice'])
+/**
+ * Rule validate
+ * Nếu có price_min và price_max thì price_max >= price_min
+ * Còn không thì có price_min thì không có price_max và ngược lại
+ */
+export default function AsideFilter({ queryConfig, categories }: Props) {
+  const { category } = queryConfig
+
   const { t } = useTranslation('home')
+
+  const {
+    control,
+    handleSubmit,
+    trigger,
+    formState: { errors },
+    reset
+  } = useForm<FormData>({
+    defaultValues: {
+      minPrice: '',
+      maxPrice: ''
+    },
+    resolver: yupResolver<FormData>(priceSchema as ObjectSchema<FormData>)
+  })
+  const navigate = useNavigate()
+
+  const onSubmit = handleSubmit((data) => {
+    navigate({
+      pathname: path.home,
+      search: createSearchParams({
+        ...queryConfig,
+        maxPrice: data.maxPrice,
+        minPrice: data.minPrice
+      }).toString()
+    })
+  })
+
+  const handleRemoveAll = () => {
+    reset()
+    navigate({
+      pathname: path.home,
+      search: createSearchParams(omit(queryConfig, ['minPrice', 'maxPrice', 'category'])).toString()
+    })
+  }
+
+  const renderCategory = (categoryItem) => {
+    const isActive = category == categoryItem.id // not equal typeof
+    return (
+      <li className='py-1 pl-2' key={categoryItem.id}>
+        <Link
+          to={{
+            pathname: path.home,
+            search: createSearchParams({
+              ...queryConfig,
+              category: categoryItem.id.toString()
+            }).toString()
+          }}
+          className={classNames('relative px-2', {
+            'font-semibold text-orange': isActive
+          })}
+        >
+          {isActive && (
+            <svg viewBox='0 0 4 7' className='absolute top-1 left-[-10px] h-2 w-2 fill-orange'>
+              <polygon points='4 3.5 0 0 0 7' />
+            </svg>
+          )}
+          {categoryItem.name}
+        </Link>
+        {Array.isArray(categoryItem.subcategories) && (
+          <ol className='pl-4'>{categoryItem.subcategories.map((subCategory) => renderCategory(subCategory))}</ol>
+        )}
+      </li>
+    )
+  }
+
   return (
     <div className='py-4'>
       <Link
@@ -32,48 +120,8 @@ export default function AsideFilter() {
         </svg>
         {t('aside filter.all categories')}
       </Link>
-      <div className='my-4 h-[1px] bg-gray-300' />
-      <ul className='text-left'>
-        {/* {categories.map((categoryItem) => {
-          const isActive = category === categoryItem._id
-          return (
-            <li className='py-2 pl-2' key={categoryItem._id}>
-              <Link
-                to={{
-                  pathname: path.home,
-                  search: createSearchParams({
-                    ...queryConfig,
-                    category: categoryItem._id
-                  }).toString()
-                }}
-                className={classNames('relative px-2', {
-                  'font-semibold text-orange': isActive
-                })}
-              >
-                {isActive && (
-                  <svg viewBox='0 0 4 7' className='absolute top-1 left-[-10px] h-2 w-2 fill-orange'>
-                    <polygon points='4 3.5 0 0 0 7' />
-                  </svg>
-                )}
-                {categoryItem.name}
-              </Link>
-            </li>
-          )
-        })} */}
-        <li className='py-2 pl-2'>
-          <Link to={path.home} className='relative px-2 text-orange font-semibold'>
-            <svg viewBox='0 0 4 7' className='absolute top-1 left-[-10px] h-2 w-2 fill-orange'>
-              <polygon points='4 3.5 0 0 0 7' />
-            </svg>
-            Thời trang nam
-          </Link>
-        </li>
-        <li>
-          <Link to={path.home} className='relative px-2 '>
-            Thời trang nam
-          </Link>
-        </li>
-      </ul>
+      <div className='my-2 h-[1px] bg-gray-300' />
+      <ul className='text-left'>{categories.map((categoryItem) => renderCategory(categoryItem))}</ul>
 
       <Link to={path.home} className='mt-4 flex items-center font-bold uppercase'>
         <svg
@@ -100,9 +148,9 @@ export default function AsideFilter() {
         <div>Khoảng giá</div>
         <form className='mt-2'>
           <div className='flex items-start'>
-            {/* <Controller
+            <Controller
               control={control}
-              name='price_min'
+              name='minPrice'
               render={({ field }) => {
                 return (
                   <InputNumber
@@ -114,29 +162,16 @@ export default function AsideFilter() {
                     {...field}
                     onChange={(event) => {
                       field.onChange(event)
-                      trigger('price_max')
+                      trigger('maxPrice')
                     }}
                   />
                 )
               }}
-            /> */}
-            {/* <InputV2
-              control={control}
-              name='price_min'
-              type='number'
-              className='grow'
-              placeholder='₫ TỪ'
-              classNameInput='p-1 w-full outline-none border border-gray-300 focus:border-gray-500 rounded-sm focus:shadow-sm'
-              classNameError='hidden'
-              onChange={() => {
-                trigger('price_max')
-              }}
-            /> */}
-
+            />
             <div className='mx-2 mt-2 shrink-0'>-</div>
-            {/* <Controller
+            <Controller
               control={control}
-              name='price_max'
+              name='maxPrice'
               render={({ field }) => {
                 return (
                   <InputNumber
@@ -145,17 +180,17 @@ export default function AsideFilter() {
                     placeholder='₫ ĐẾN'
                     classNameInput='p-1 w-full outline-none border border-gray-300 focus:border-gray-500 rounded-sm focus:shadow-sm'
                     classNameError='hidden'
-                    {...field}
+                    {...field} // value = {field.value} ref = {field.ref}
                     onChange={(event) => {
                       field.onChange(event)
-                      trigger('price_min')
+                      trigger('minPrice')
                     }}
                   />
                 )
               }}
-            /> */}
+            />
           </div>
-          {/* <div className='mt-1 min-h-[1.25rem] text-center text-sm text-red-600'>{errors.price_min?.message}</div> */}
+          <div className='mt-1 min-h-[1.25rem] text-center text-sm text-red-600'>{errors.price_min?.message}</div>
           <Button className='flex w-full items-center justify-center bg-orange p-2 text-sm uppercase text-white hover:bg-orange/80'>
             Áp dụng
           </Button>
@@ -167,7 +202,7 @@ export default function AsideFilter() {
       {/* <RatingStars queryConfig={queryConfig} /> */}
       <div className='my-4 h-[1px] bg-gray-300' />
       <Button
-        // onClick={handleRemoveAll}
+        onClick={handleRemoveAll}
         className='flex w-full items-center justify-center bg-orange p-2 text-sm uppercase text-white hover:bg-orange/80'
       >
         Xóa tất cả
